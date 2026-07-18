@@ -55,8 +55,9 @@ class ControlPanel:
         ttk.Label(frame, textvariable=self.status_var, foreground='gray').grid(
             row=5, column=0, columnspan=2, sticky='w', **pad)
 
-        note = ('Translation source language is always auto-detected. '
-                'The dropdown above only selects which character set the OCR model reads.')
+        note = ('Translations are drawn on top of the original text, sized to fit. '
+                'Source language is auto-detected; the dropdown only sets which '
+                'character set the OCR model reads.')
         ttk.Label(frame, text=note, wraplength=390, foreground='#555').grid(
             row=6, column=0, columnspan=2, sticky='w', **pad)
 
@@ -86,6 +87,7 @@ class ControlPanel:
             interval=self.interval_var.get(),
             result_queue=self.result_queue,
         )
+        self.overlay.set_region(self.region)
         self.worker.start()
         self.toggle_btn.config(text='Stop')
         self.select_btn.config(state='disabled')
@@ -98,7 +100,7 @@ class ControlPanel:
         self.toggle_btn.config(text='Start')
         self.select_btn.config(state='normal')
         self.status_var.set('Idle')
-        self.overlay.show_at(0, 0, 0, '')
+        self.overlay.update_blocks([])
 
     def _poll_queue(self):
         try:
@@ -106,22 +108,13 @@ class ControlPanel:
                 kind, payload = self.result_queue.get_nowait()
                 if kind == 'status':
                     self.status_var.set(payload)
-                elif kind == 'text':
-                    self._show_translation(payload)
+                elif kind == 'blocks':
+                    self.overlay.update_blocks(payload)
                 elif kind == 'error':
                     self.status_var.set(f'Error: {payload}')
         except queue.Empty:
             pass
         self.root.after(150, self._poll_queue)
-
-    def _show_translation(self, text):
-        left, top, width, height = self.region
-        x = left
-        y = top + height + 8
-        screen_h = self.root.winfo_screenheight()
-        if y > screen_h - 100:
-            y = max(0, top - 100)
-        self.overlay.show_at(x, y, width, text)
 
     def on_close(self):
         self.stop_worker()
