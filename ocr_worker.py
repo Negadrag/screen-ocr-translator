@@ -46,18 +46,21 @@ class OcrWorker(threading.Thread):
     def stop(self):
         self._stop_event.set()
 
-    def _get_reader(self):
+    def _get_reader(self, gpu):
         import easyocr
-        import torch
         langs = LANGUAGE_PRESETS[self.lang_preset]
-        gpu = torch.cuda.is_available()
         return easyocr.Reader(langs, gpu=gpu, verbose=False)
 
     def run(self):
         try:
-            self.result_queue.put(('status', 'Loading OCR model (first run downloads weights)...'))
-            self._reader = self._get_reader()
-            self.result_queue.put(('status', 'Running'))
+            import torch
+            gpu = torch.cuda.is_available()
+            device = torch.cuda.get_device_name(0) if gpu else 'CPU'
+            self.result_queue.put(
+                ('status', f'Loading OCR model on {device} (first run downloads weights)...'))
+            self._reader = self._get_reader(gpu)
+            self.result_queue.put(
+                ('status', f'Running — {("GPU: " + device) if gpu else "CPU (no CUDA GPU found)"}'))
         except Exception as e:
             self.result_queue.put(('error', f'Failed to load OCR model: {e}'))
             return

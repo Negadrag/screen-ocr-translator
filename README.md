@@ -30,6 +30,32 @@ The first run downloads EasyOCR's detection/recognition model weights (a few hun
 
 > **Note:** EasyOCR pulls in PyTorch + torchvision, which is a large (multi-GB) install.
 
+### GPU acceleration (NVIDIA / CUDA)
+
+`pip install` gives you the **CPU-only** PyTorch build. OCR still works, but each
+capture takes a couple hundred milliseconds. With an NVIDIA GPU you can install a
+CUDA build for a large speedup (roughly 5× in testing), and the app will use it
+automatically — no code or config changes needed.
+
+Pick the CUDA index matching your GPU/driver and reinstall torch:
+
+```bash
+# CUDA 13.0 — required for RTX 50-series (Blackwell); works on most recent NVIDIA GPUs/drivers
+pip install --force-reinstall --no-deps --index-url https://download.pytorch.org/whl/cu130 torch torchvision
+
+# CUDA 12.8 — for older GPUs/drivers
+pip install --force-reinstall --no-deps --index-url https://download.pytorch.org/whl/cu128 torch torchvision
+```
+
+Verify CUDA is picked up:
+
+```bash
+python -c "import torch; print(torch.cuda.is_available(), torch.cuda.get_device_name(0))"
+```
+
+When you click **Start**, the status line shows which device is in use (e.g.
+`Running — GPU: NVIDIA GeForce RTX 5080`).
+
 ## Usage
 
 ```bash
@@ -45,7 +71,7 @@ python main.py
 ### Notes
 
 - **Source language is always auto-detected** by Google Translate. The dropdown only selects which character set EasyOCR uses to *read* glyphs — EasyOCR can't combine incompatible scripts (e.g. CJK + Latin + Cyrillic) in a single model, so pick the one matching your source text.
-- On a CPU-only machine, OCR takes a couple hundred milliseconds per capture — fine for the default 2s interval. With a CUDA GPU it's much faster, so you can lower the interval.
+- On a CPU-only machine, OCR takes a couple hundred milliseconds per capture — fine for the default 2s interval. With a CUDA GPU (see [GPU acceleration](#gpu-acceleration-nvidia--cuda)) it's much faster, so you can lower the interval.
 
 ## Project structure
 
