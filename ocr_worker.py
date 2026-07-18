@@ -115,8 +115,9 @@ class OcrWorker(threading.Thread):
 
         blocks = []
         for b in raw_blocks:
+            # Keep 'src' (the original text) alongside the translation so the
+            # separate-window panel can show both. The overlay ignores it.
             b['text'] = self._cache.get(b['src'], b['src'])
-            del b['src']
             blocks.append(b)
         return blocks
 

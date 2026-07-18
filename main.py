@@ -5,19 +5,26 @@ from tkinter import ttk
 from ocr_worker import LANGUAGE_PRESETS, OcrWorker
 from overlay_window import TranslationOverlay
 from region_selector import select_region
+from text_panel import TranslationPanel
+
+OUTPUT_OVERLAY = 'Overlay on original'
+OUTPUT_WINDOW = 'Separate window'
+OUTPUT_BOTH = 'Both'
 
 
 class ControlPanel:
     def __init__(self, root):
         self.root = root
         root.title('Screen OCR Translator')
-        root.geometry('420x260')
+        root.geometry('420x320')
         root.resizable(False, False)
 
         self.region = None
         self.worker = None
         self.result_queue = queue.Queue()
         self.overlay = TranslationOverlay(root)
+        self.panel = None            # created lazily when first needed
+        self._last_blocks = []
 
         self._build_ui()
         self._poll_queue()
@@ -42,24 +49,34 @@ class ControlPanel:
             textvariable=self.interval_var, width=8,
         ).grid(row=2, column=1, sticky='w', **pad)
 
+        ttk.Label(frame, text='Output to:').grid(row=3, column=0, sticky='w', **pad)
+        self.output_var = tk.StringVar(value=OUTPUT_OVERLAY)
+        output_combo = ttk.Combobox(
+            frame, textvariable=self.output_var,
+            values=[OUTPUT_OVERLAY, OUTPUT_WINDOW, OUTPUT_BOTH],
+            state='readonly', width=20,
+        )
+        output_combo.grid(row=3, column=1, sticky='w', **pad)
+        output_combo.bind('<<ComboboxSelected>>', lambda _e: self._apply_output_mode())
+
         self.region_label = ttk.Label(frame, text='No region selected')
-        self.region_label.grid(row=3, column=0, columnspan=2, sticky='w', **pad)
+        self.region_label.grid(row=4, column=0, columnspan=2, sticky='w', **pad)
 
         self.select_btn = ttk.Button(frame, text='Select Region', command=self.on_select_region)
-        self.select_btn.grid(row=4, column=0, sticky='we', **pad)
+        self.select_btn.grid(row=5, column=0, sticky='we', **pad)
 
         self.toggle_btn = ttk.Button(frame, text='Start', command=self.on_toggle, state='disabled')
-        self.toggle_btn.grid(row=4, column=1, sticky='we', **pad)
+        self.toggle_btn.grid(row=5, column=1, sticky='we', **pad)
 
         self.status_var = tk.StringVar(value='Idle')
         ttk.Label(frame, textvariable=self.status_var, foreground='gray').grid(
-            row=5, column=0, columnspan=2, sticky='w', **pad)
-
-        note = ('Translations are drawn on top of the original text, sized to fit. '
-                'Source language is auto-detected; the dropdown only sets which '
-                'character set the OCR model reads.')
-        ttk.Label(frame, text=note, wraplength=390, foreground='#555').grid(
             row=6, column=0, columnspan=2, sticky='w', **pad)
+
+        note = ('Translations can be drawn on top of the original text (sized to fit) '
+                'and/or shown in a separate window. Source language is auto-detected; '
+                'the dropdown only sets which character set the OCR model reads.')
+        ttk.Label(frame, text=note, wraplength=390, foreground='#555').grid(
+            row=7, column=0, columnspan=2, sticky='w', **pad)
 
         self.root.protocol('WM_DELETE_WINDOW', self.on_close)
 
@@ -89,6 +106,7 @@ class ControlPanel:
         )
         self.overlay.set_region(self.region)
         self.worker.start()
+        self._apply_output_mode()
         self.toggle_btn.config(text='Stop')
         self.select_btn.config(state='disabled')
         self.status_var.set('Starting...')
@@ -100,7 +118,36 @@ class ControlPanel:
         self.toggle_btn.config(text='Start')
         self.select_btn.config(state='normal')
         self.status_var.set('Idle')
+        self._last_blocks = []
         self.overlay.update_blocks([])
+        if self.panel is not None:
+            self.panel.update([])
+
+    def _ensure_panel(self):
+        if self.panel is None:
+            self.panel = TranslationPanel(self.root, on_close=self._on_panel_closed)
+        return self.panel
+
+    def _on_panel_closed(self):
+        # User closed the output window directly; fall back to overlay-only so
+        # it doesn't keep reappearing on the next update.
+        if self.output_var.get() in (OUTPUT_WINDOW, OUTPUT_BOTH):
+            self.output_var.set(OUTPUT_OVERLAY)
+        self._apply_output_mode()
+
+    def _apply_output_mode(self):
+        mode = self.output_var.get()
+        if mode in (OUTPUT_WINDOW, OUTPUT_BOTH):
+            self._ensure_panel().show()
+        elif self.panel is not None:
+            self.panel.hide()
+        self._route_blocks(self._last_blocks)
+
+    def _route_blocks(self, blocks):
+        mode = self.output_var.get()
+        self.overlay.update_blocks(blocks if mode in (OUTPUT_OVERLAY, OUTPUT_BOTH) else [])
+        if mode in (OUTPUT_WINDOW, OUTPUT_BOTH):
+            self._ensure_panel().update(blocks)
 
     def _poll_queue(self):
         try:
@@ -109,7 +156,8 @@ class ControlPanel:
                 if kind == 'status':
                     self.status_var.set(payload)
                 elif kind == 'blocks':
-                    self.overlay.update_blocks(payload)
+                    self._last_blocks = payload
+                    self._route_blocks(payload)
                 elif kind == 'error':
                     self.status_var.set(f'Error: {payload}')
         except queue.Empty:
@@ -119,6 +167,8 @@ class ControlPanel:
     def on_close(self):
         self.stop_worker()
         self.overlay.close()
+        if self.panel is not None:
+            self.panel.close()
         self.root.destroy()
 
 

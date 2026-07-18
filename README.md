@@ -7,6 +7,7 @@ Built with EasyOCR (offline text recognition) and Google Translate via `deep-tra
 ## Features
 
 - **Live overlay translation** — pick a screen region once, and it re-captures and re-translates several times per second.
+- **Two output modes** — draw translations *in place* over the original text, show them in a *separate scrollable window* (easy to read/copy), or *both*.
 - **Multi-monitor drag-to-select** — dim overlay spanning all monitors; drag a box around the text you care about.
 - **Auto-detected source language** — Google auto-detects what language the text is in; you only pick which *character set* (script) the OCR model should read.
 - **Script presets** — Latin (English/French/German/Spanish/Italian/Portuguese), Japanese, Simplified/Traditional Chinese, Korean, Russian (Cyrillic), or English-only.
@@ -65,7 +66,8 @@ python main.py
 1. **Select the OCR script** from the dropdown if your text isn't Latin-based (e.g. Japanese, Chinese, Korean, Russian).
 2. Click **Select Region** and drag a box over the text you want translated. Press `Esc` to cancel.
 3. Adjust the **refresh interval** (default 0.5s) if desired — lower is more responsive but uses more CPU/GPU.
-4. Click **Start**. The translated English text is drawn directly on top of the original text, sized to match. The overlay is fully click-through, so you can keep clicking, scrolling, and typing in the app underneath.
+4. Choose **Output to**: *Overlay on original* (drawn on top of the source text, sized to match, fully click-through), *Separate window* (a movable, scrollable window showing the original text and its translation — handy for reading or copying), or *Both*.
+5. Click **Start**.
 5. Click **Stop** to pause, or close the window to exit.
 
 ### Notes
@@ -81,7 +83,8 @@ python main.py
 | `main.py` | Tkinter control panel; wires everything together and polls the worker for results. |
 | `region_selector.py` | Full-screen, all-monitor drag-to-select overlay; returns the chosen region. |
 | `ocr_worker.py` | Background thread: grabs the region on an interval, runs EasyOCR, translates changed text. |
-| `overlay_window.py` | Borderless always-on-top window that displays the translated text. |
+| `overlay_window.py` | Borderless, click-through, always-on-top window that draws translations over the original text. |
+| `text_panel.py` | Optional separate scrollable window listing the original text and its translation. |
 
 ## How it works
 
