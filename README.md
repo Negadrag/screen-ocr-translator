@@ -86,6 +86,38 @@ python main.py
 | `overlay_window.py` | Borderless, click-through, always-on-top window that draws translations over the original text. |
 | `text_panel.py` | Optional separate scrollable window listing the original text and its translation. |
 
+## Building a standalone .exe
+
+A [PyInstaller](https://pyinstaller.org/) spec (`screen_ocr_translator.spec`) is
+included. It produces a one-folder Windows app in `dist/ScreenOCRTranslator/`.
+
+**Size / GPU caveat:** the bundle includes PyTorch. With the **CPU** build it's
+roughly **600–800 MB**; with the **CUDA (GPU)** build it's **~3.5 GB**, which
+exceeds GitHub's **2 GB per-file** release-asset limit. For a distributable
+build, use CPU-only torch — it runs on any Windows PC, and users who want GPU
+speed can run from source. Do this in a **clean virtual environment** so it
+doesn't disturb a CUDA install you use for development:
+
+```bash
+python -m venv build-env
+build-env\Scripts\activate           # Windows
+pip install -r requirements.txt      # pulls CPU-only torch by default
+pip install pyinstaller
+pyinstaller screen_ocr_translator.spec
+```
+
+The app is then in `dist/ScreenOCRTranslator/` — run `ScreenOCRTranslator.exe`.
+Zip that folder to distribute it. (The first run still downloads EasyOCR's model
+weights, so an internet connection is needed once.)
+
+To publish it as a GitHub release:
+
+```bash
+# from the repo, after zipping dist/ScreenOCRTranslator into ScreenOCRTranslator-win64.zip
+gh release create v1.0.0 ScreenOCRTranslator-win64.zip \
+  --title "v1.0.0" --notes "Standalone Windows build (CPU)."
+```
+
 ## How it works
 
 1. `region_selector` returns a `(left, top, width, height)` rectangle in absolute screen coordinates.

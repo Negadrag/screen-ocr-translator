@@ -25,6 +25,10 @@ Thumbs.db
 Desktop.ini
 .DS_Store
 
+# PyInstaller build output (build/ and dist/ already covered above)
+build-env/
+*.zip
+
 # Local artifacts
 screenshot.png
 test_ocr.png
