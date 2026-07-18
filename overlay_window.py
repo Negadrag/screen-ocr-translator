@@ -32,21 +32,33 @@ class TranslationOverlay:
         self._sig = None
         self.window.withdraw()
         self.window.update_idletasks()
-        self._exclude_from_capture()
+        self._apply_window_flags()
 
     def set_region(self, region):
         self._region = region
         self._sig = None
 
-    def _exclude_from_capture(self):
-        """Hide this window from screen-capture APIs (incl. mss) so we don't
-        OCR our own overlay and translate English back into English."""
+    def _apply_window_flags(self):
+        """Configure the overlay window at the Win32 level:
+        - WS_EX_TRANSPARENT: make the whole window click-through, so mouse and
+          scroll input passes to the app behind it (not just transparent areas).
+        - WDA_EXCLUDEFROMCAPTURE: hide it from screen-capture APIs (incl. mss)
+          so we don't OCR our own overlay and translate English into English.
+        """
         if sys.platform != 'win32':
             return
         try:
             import ctypes
             user32 = ctypes.windll.user32
             hwnd = user32.GetAncestor(self.window.winfo_id(), 2)  # GA_ROOT
+
+            GWL_EXSTYLE = -20
+            WS_EX_LAYERED = 0x00080000
+            WS_EX_TRANSPARENT = 0x00000020
+            style = user32.GetWindowLongW(hwnd, GWL_EXSTYLE)
+            user32.SetWindowLongW(
+                hwnd, GWL_EXSTYLE, style | WS_EX_LAYERED | WS_EX_TRANSPARENT)
+
             WDA_EXCLUDEFROMCAPTURE = 0x11
             user32.SetWindowDisplayAffinity(hwnd, WDA_EXCLUDEFROMCAPTURE)
         except Exception:
@@ -73,7 +85,7 @@ class TranslationOverlay:
 
         self.window.deiconify()
         self.window.lift()
-        self._exclude_from_capture()
+        self._apply_window_flags()
 
     def _draw_block(self, b):
         x, y, w, h = b['x'], b['y'], b['w'], b['h']

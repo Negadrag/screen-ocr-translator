@@ -1,5 +1,6 @@
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 
 import mss
 import numpy as np
@@ -86,7 +87,7 @@ class OcrWorker(threading.Thread):
     def _process(self, frame):
         """OCR the frame and return a list of positioned, translated blocks."""
         results = self._reader.readtext(frame, paragraph=True)
-        blocks = []
+        raw_blocks = []
         for item in results:
             bbox, raw = item[0], item[1]
             text = (raw or '').strip()
@@ -105,22 +106,33 @@ class OcrWorker(threading.Thread):
                 continue
 
             bg, fg = self._sample_colors(frame, left, top, right, bottom)
-            blocks.append({
+            raw_blocks.append({
                 'x': left, 'y': top, 'w': w, 'h': h,
-                'text': self._translate_cached(text),
-                'bg': bg, 'fg': fg,
+                'src': text, 'bg': bg, 'fg': fg,
             })
+
+        self._translate_missing(b['src'] for b in raw_blocks)
+
+        blocks = []
+        for b in raw_blocks:
+            b['text'] = self._cache.get(b['src'], b['src'])
+            del b['src']
+            blocks.append(b)
         return blocks
 
-    def _translate_cached(self, text):
-        cached = self._cache.get(text)
-        if cached is not None:
-            return cached
-        out = self._translate(text)
+    def _translate_missing(self, texts):
+        """Translate any not-yet-cached strings concurrently, filling the cache.
+        Running the network calls in parallel keeps latency near a single
+        request even when several new text blocks appear at once."""
+        pending = [t for t in dict.fromkeys(texts) if t not in self._cache]
+        if not pending:
+            return
         if len(self._cache) > 500:
             self._cache.clear()
-        self._cache[text] = out
-        return out
+        with ThreadPoolExecutor(max_workers=min(6, len(pending))) as pool:
+            outputs = pool.map(self._translate, pending)
+        for text, out in zip(pending, outputs):
+            self._cache[text] = out
 
     @staticmethod
     def _sample_colors(frame, left, top, right, bottom):

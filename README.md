@@ -64,14 +64,15 @@ python main.py
 
 1. **Select the OCR script** from the dropdown if your text isn't Latin-based (e.g. Japanese, Chinese, Korean, Russian).
 2. Click **Select Region** and drag a box over the text you want translated. Press `Esc` to cancel.
-3. Adjust the **refresh interval** (default 2s) if desired — lower is more responsive but uses more CPU.
-4. Click **Start**. The translated English text appears in a floating overlay near the captured region.
+3. Adjust the **refresh interval** (default 0.5s) if desired — lower is more responsive but uses more CPU/GPU.
+4. Click **Start**. The translated English text is drawn directly on top of the original text, sized to match. The overlay is fully click-through, so you can keep clicking, scrolling, and typing in the app underneath.
 5. Click **Stop** to pause, or close the window to exit.
 
 ### Notes
 
 - **Source language is always auto-detected** by Google Translate. The dropdown only selects which character set EasyOCR uses to *read* glyphs — EasyOCR can't combine incompatible scripts (e.g. CJK + Latin + Cyrillic) in a single model, so pick the one matching your source text.
-- On a CPU-only machine, OCR takes a couple hundred milliseconds per capture — fine for the default 2s interval. With a CUDA GPU (see [GPU acceleration](#gpu-acceleration-nvidia--cuda)) it's much faster, so you can lower the interval.
+- On a CPU-only machine, OCR takes a couple hundred milliseconds per capture, so a larger interval is easier on the CPU. With a CUDA GPU (see [GPU acceleration](#gpu-acceleration-nvidia--cuda)) OCR is ~5× faster, so the low default interval stays responsive.
+- The overlay is click-through and excluded from screen capture, so it won't block your input and won't get re-translated by its own OCR.
 
 ## Project structure
 

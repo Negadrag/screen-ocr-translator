@@ -36,9 +36,9 @@ class ControlPanel:
         lang_combo.grid(row=1, column=0, columnspan=2, sticky='w', **pad)
 
         ttk.Label(frame, text='Refresh interval (seconds):').grid(row=2, column=0, sticky='w', **pad)
-        self.interval_var = tk.DoubleVar(value=2.0)
+        self.interval_var = tk.DoubleVar(value=0.5)
         ttk.Spinbox(
-            frame, from_=0.5, to=10.0, increment=0.5,
+            frame, from_=0.2, to=10.0, increment=0.1,
             textvariable=self.interval_var, width=8,
         ).grid(row=2, column=1, sticky='w', **pad)
 
@@ -114,7 +114,7 @@ class ControlPanel:
                     self.status_var.set(f'Error: {payload}')
         except queue.Empty:
             pass
-        self.root.after(150, self._poll_queue)
+        self.root.after(50, self._poll_queue)
 
     def on_close(self):
         self.stop_worker()
